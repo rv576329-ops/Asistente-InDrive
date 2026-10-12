@@ -1,0 +1,49 @@
+
+name: Crear APK Android
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - main
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Descargar proyecto
+        uses: actions/checkout@v4
+
+      - name: Instalar Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - name: Preparar Gradle
+        uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '8.9'
+
+      - name: Descomprimir proyecto
+        run: |
+          mkdir -p extraido
+          unzip -o "$(find . -maxdepth 1 -name '*.zip' | head -n 1)" -d extraido
+          find extraido -type f | head -100
+
+      - name: Construir APK
+        run: |
+          DIR=$(find extraido -name settings.gradle -o -name settings.gradle.kts | head -1)
+          if [ -z "$DIR" ]; then
+            echo "No se encontró el proyecto Gradle dentro del ZIP."
+            exit 1
+          fi
+          cd "$(dirname "$DIR")"
+          gradle assembleDebug
+
+      - name: Guardar APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: Asistente-InDrive-APK
+          path: extraido/**/build/outputs/apk/debug/*.apk
+          if-no-files-found: error
